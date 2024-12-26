@@ -185,7 +185,11 @@ class ProductCard extends StatelessWidget {
   final Function(Map<String, dynamic>) onDelete;
   final Function() onEdit;
 
-  ProductCard({required this.product, required this.onDelete, required this.onEdit});
+  ProductCard({
+    required this.product,
+    required this.onDelete,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -195,7 +199,13 @@ class ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 6,
+            offset: Offset(0, 4),
+          )
+        ],
       ),
       child: Row(
         children: [
@@ -212,18 +222,22 @@ class ProductCard extends StatelessWidget {
                 child: product['image'] != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.file(product['image'], fit: BoxFit.cover),
+                        child: Image.file(product['image'], 
+                        height: 250,
+                        width: 200,
+                        fit: BoxFit.cover),
                       )
                     : Icon(Icons.image, size: 50, color: Colors.grey),
               ),
               SizedBox(height: 8),
               Text(
                 product['name'] ?? 'Nama Produk',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
               ),
               SizedBox(height: 4),
               Text(
-                'Rp. ${product['price']}',
+                'Rp. ${product['price'].toStringAsFixed(2)}', // Menampilkan harga sebagai double
                 style: TextStyle(fontSize: 12, color: Colors.grey[800]),
               ),
             ],
@@ -256,22 +270,29 @@ class ProductCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.shopping_cart, color: Colors.white, size: 16),
-                            SizedBox(width: 8), // Slightly bigger gap for readability
+                            SizedBox(width: 8),
                             Flexible(
                               child: TextButton(
                                 onPressed: () {
+                                  // Navigate to Statuspesanan and pass the product data
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => Statuspesanan(),
+                                      builder: (context) => Statuspesanan(
+                                        product: product, // Passing the product data
+                                      ),
                                     ),
                                   );
                                 },
                                 style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 10.0), // Text color
-                                  textStyle: TextStyle(fontSize: 14), // Text size
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: 10.0),
+                                  textStyle: TextStyle(fontSize: 14),
                                 ),
-                                child: Text('Masukkan keranjang', overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  'Masukkan keranjang',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ],
@@ -288,7 +309,7 @@ class ProductCard extends StatelessWidget {
                         IconButton(
                           icon: Icon(Icons.delete, color: Colors.red, size: 20),
                           onPressed: () {
-                            onDelete(product); // Menghapus produk
+                            onDelete(product);
                           },
                         ),
                       ],

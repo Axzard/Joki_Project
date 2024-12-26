@@ -13,7 +13,7 @@ class TambahProdukPage extends StatefulWidget {
 class _TambahProdukPageState extends State<TambahProdukPage> {
   final _formKey = GlobalKey<FormState>();
   late String _name;
-  late String _price;
+  late double _price;
   late String _details;
   String? _selectedSize;
   File? _image;
@@ -86,7 +86,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                 decoration: InputDecoration(labelText: 'Harga Produk'),
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? 'Harga produk tidak boleh kosong' : null,
-                onSaved: (value) => _price = value!,
+                onSaved: (value) => _price = double.parse(value!),
               ),
               TextFormField(
                 decoration: InputDecoration(labelText: 'Detail Produk'),
@@ -112,11 +112,13 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                       icon: Icon(Icons.image),
                       label: Text('Pilih Gambar'),
                     )
-                  : Image.file(
-                      _image!,
-                      height: 150,
-                      width: 150,
-                      fit: BoxFit.cover,
+                  : Center(
+                      child: Image.file(
+                        _image!,
+                        height: 250,
+                        width: 200,
+                        fit: BoxFit.cover, // Menyesuaikan gambar agar sesuai tanpa terpotong
+                      ),
                     ),
               SizedBox(height: 20),
               ElevatedButton(

@@ -96,7 +96,7 @@ class HomeAdminPage extends StatelessWidget {
                           label: 'Pesanan',
                           onTap: () {
                             Navigator.push(context,
-                             MaterialPageRoute(builder: (context) => Statuspesanan()),
+                             MaterialPageRoute(builder: (context) => Statuspesanan(product: {},)),
                             );
                           },
                         ),

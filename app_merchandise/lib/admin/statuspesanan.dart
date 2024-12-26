@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
 
-class Statuspesanan extends StatelessWidget {
-  
+class Statuspesanan extends StatefulWidget {
+  final Map<String, dynamic> product; // Menerima data produk sebagai parameter
+
+  Statuspesanan({required this.product}); // Konstruktor menerima produk
+
+  @override
+  _StatuspesananState createState() => _StatuspesananState();
+}
+
+class _StatuspesananState extends State<Statuspesanan> {
+  int productQuantity = 1; // Variabel untuk menyimpan jumlah produk
+  late double totalPrice; // Variabel untuk menyimpan harga total
+
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi harga total jika produk tersedia
+    if (widget.product.isNotEmpty) {
+      totalPrice = widget.product['price'] * productQuantity.toDouble();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
 
@@ -68,7 +87,7 @@ class Statuspesanan extends StatelessWidget {
             ),
           ),
           SizedBox(height: 10),
-          // Daftar Produk
+          // Daftar Produk atau Pesanan
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -77,12 +96,22 @@ class Statuspesanan extends StatelessWidget {
                   top: Radius.circular(30),
                 ),
               ),
-              child: ListView.builder(
+              child: ListView(
                 padding: EdgeInsets.all(20),
-                itemCount: 3,
-                itemBuilder: (context, index) {
-                  return _buildProdukItem();
-                },
+                children: [
+                  // Periksa apakah ada produk, jika tidak tampilkan pesan "Belum ada pesanan"
+                  widget.product.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Belum ada pesanan.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                          ),
+                        )
+                      : _buildProdukItem(), // Jika ada produk, tampilkan item
+                ],
               ),
             ),
           ),
@@ -115,11 +144,14 @@ class Statuspesanan extends StatelessWidget {
                       color: Colors.grey[300], // Background color of the square
                       borderRadius: BorderRadius.circular(10), // Optional, gives rounded corners
                     ),
-                    child: Icon(Icons.sports_soccer, size: 40, color: Colors.black),
+                    child: Image.file(
+                      widget.product['image'], 
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   SizedBox(height: 5),
                   Text(
-                    'Jersey Malut United',
+                    widget.product['name'] ?? 'Nama Produk',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -127,7 +159,7 @@ class Statuspesanan extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    'Rp. 200.000',
+                    'Rp. ${widget.product['price']}',
                     style: TextStyle(
                       color: Colors.red[800],
                       fontWeight: FontWeight.bold,
@@ -157,7 +189,7 @@ class Statuspesanan extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Detail:\nJersey di samping merupakan original, tersedia ukuran M, L, dan XL.',
+                      'Detail: ${widget.product['details'] ?? 'Detail produk tidak tersedia'}',
                       style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 10),
@@ -165,22 +197,50 @@ class Statuspesanan extends StatelessWidget {
                     TextField(
                       decoration: InputDecoration(
                         border: OutlineInputBorder(),
-                        labelText: 'Ukuran L',
+                        labelText: 'Ukuran ${widget.product['size'] ?? 'L'}',
                         labelStyle: TextStyle(color: Colors.red[800]),
                         isDense: true,
                       ),
                     ),
                     SizedBox(height: 10),
-                    // Jumlah produk
+                    // Jumlah produk dan tombol tambah
                     Row(
                       children: [
-                        Icon(Icons.add, size: 18, color: Colors.black),
-                        SizedBox(width: 5),
+                        IconButton(
+                          icon: Icon(Icons.remove, size: 18, color: Colors.black),
+                          onPressed: () {
+                            setState(() {
+                              if (productQuantity > 1) {
+                                productQuantity--;
+                                totalPrice = widget.product['price'] * productQuantity.toDouble();
+                              }
+                            });
+                          },
+                        ),
                         Text(
-                          'Jumlah 1',
+                          'Jumlah $productQuantity',
                           style: TextStyle(fontSize: 14),
                         ),
+                        IconButton(
+                          icon: Icon(Icons.add, size: 18, color: Colors.black),
+                          onPressed: () {
+                            setState(() {
+                              productQuantity++;
+                              totalPrice = widget.product['price'] * productQuantity.toDouble();
+                            });
+                          },
+                        ),
                       ],
+                    ),
+                    SizedBox(height: 10),
+                    // Harga total
+                    Text(
+                      'Total: Rp. ${totalPrice.toStringAsFixed(2)}', // Menampilkan harga total
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.red[800],
+                      ),
                     ),
                   ],
                 ),
