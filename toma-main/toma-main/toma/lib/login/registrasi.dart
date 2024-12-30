@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class RegistrationPage extends StatefulWidget {
   @override
@@ -6,8 +8,63 @@ class RegistrationPage extends StatefulWidget {
 }
 
 class _RegistrationPageState extends State<RegistrationPage> {
-  bool _isPasswordVisible = false; 
-  bool _isConfirmPasswordVisible = false; 
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
+  void _registerUser() async {
+    String name = _nameController.text.trim();
+    String phone = _phoneController.text.trim();
+    String password = _passwordController.text.trim();
+
+    if (name.isEmpty || phone.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Harap isi semua field!')),
+      );
+      return;
+    }
+
+    // URL Firebase Realtime Database
+    final String url =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna.json';
+
+    try {
+      // Mengirim data ke Firebase
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'nama': name,
+          'telepon': phone,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registrasi berhasil!')),
+        );
+
+        // Bersihkan form
+        _nameController.clear();
+        _phoneController.clear();
+        _passwordController.clear();
+
+        // Kembali ke layar login
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal registrasi: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +73,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       body: SingleChildScrollView(
         child: Center(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 150),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -52,6 +108,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   child: Column(
                     children: [
                       TextField(
+                        controller: _nameController,
                         decoration: InputDecoration(
                           hintText: 'Masukkan nama lengkap',
                           hintStyle: TextStyle(color: Colors.red[800]),
@@ -65,6 +122,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       ),
                       SizedBox(height: 10),
                       TextField(
+                        controller: _phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: InputDecoration(
                           hintText: 'Masukkan nomor telepon',
@@ -79,6 +137,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       ),
                       SizedBox(height: 10),
                       TextField(
+                        controller: _passwordController,
                         obscureText: !_isPasswordVisible,
                         decoration: InputDecoration(
                           hintText: 'Masukkan password',
@@ -134,7 +193,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       ),
                       SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: _registerUser,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           shape: RoundedRectangleBorder(

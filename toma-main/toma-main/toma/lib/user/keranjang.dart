@@ -1,9 +1,65 @@
-
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:app_merchandise/model/model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';  // Untuk menggunakan FileImage
+
+// Model untuk pesanan
+class Order {
+  final String id;
+  final String name;
+  final String image; // path file image lokal
+  final String price;
+  final String size;
+  final int quantity;
+  final String description;
+
+  Order({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.price,
+    required this.size,
+    required this.quantity,
+    required this.description,
+  });
+
+  // Fungsi untuk membuat instansi Order dari JSON
+  factory Order.fromJson(Map<String, dynamic> json, String id) {
+    return Order(
+      id: id,
+      name: json['name'],
+      image: json['image'], // Path gambar lokal atau URL gambar
+      price: json['price'] is double ? json['price'].toString() : json['price'],
+      size: json['size'],
+      quantity: json['quantity'] is double ? json['quantity'].toInt() : json['quantity'],
+      description: json['description'],
+    );
+  }
+}
 
 class KeranjangPage extends StatelessWidget {
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json';
+
+  // Fungsi untuk mengambil daftar pesanan dari Firebase
+  Future<List<Order>> fetchOrders() async {
+    try {
+      final response = await http.get(Uri.parse(firebaseUrl));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final List<Order> orders = [];
+        data.forEach((key, orderData) {
+          orders.add(Order.fromJson(orderData, key));
+        });
+        return orders;
+      } else {
+        throw Exception('Gagal memuat pesanan');
+      }
+    } catch (e) {
+      throw Exception('Error fetching orders: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,188 +77,112 @@ class KeranjangPage extends StatelessWidget {
           },
         ),
       ),
-      body: Consumer<CartModel>(
-        builder: (context, cartModel, child) {
-          final cartItems = cartModel.cartItems;
+      body: FutureBuilder<List<Order>>(
+        future: fetchOrders(), // Ambil data pesanan dari Firebase
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('Keranjang kosong'));
+          }
 
-          return cartItems.isEmpty
-              ? Center(
-                  child: Text(
-                    'Keranjang kosong',
-                    style: TextStyle(fontSize: 24),
+          final List<Order> orders = snapshot.data!;
+
+          return ListView.builder(
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              Order order = orders[index];
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
                   ),
-                )
-              : ListView.builder(
-                  itemCount: cartItems.length,
-                  itemBuilder: (context, index) {
-                    var product = cartItems[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
+                  elevation: 5,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                image: DecorationImage(
+                                  image: order.image.isNotEmpty
+                                      ? FileImage(File(order.image)) // Gambar dari file lokal
+                                      : AssetImage('assets/placeholder.jpg') as ImageProvider,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    order.name,
+                                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Rp. ${order.price}',
+                                    style: TextStyle(fontSize: 20, color: Colors.grey[700]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        elevation: 5,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 150,
-                                    height: 150,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      image: DecorationImage(
-                                        image: AssetImage(product.image),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          product.name,
-                                          style: TextStyle(
-                                              fontSize: 25,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          product.price as String,
-                                          style: TextStyle(
-                                              fontSize: 20, color: Colors.grey[700]),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Detail: ${product.description}',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  DropdownButton<String>(
-                                    value: product.selectedSize,
-                                    hint: Text(
-                                      'Pilih ukuran',
-                                      style: TextStyle(fontSize: 20),
-                                    ),
-                                    items: product.availableSizes.map((size) {
-                                      return DropdownMenuItem(
-                                        value: size,
-                                        child: Text(size),
-                                      );
-                                    }).toList(),
-                                    onChanged: (value) {
-                                      cartModel.updateSize(index, value!);
-                                    },
-                                  ),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        onPressed: () =>
-                                            cartModel.decrementQuantity(index),
-                                        icon: Icon(Icons.remove),
-                                      ),
-                                      Text(
-                                        product.quantity.toString(),
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                                      IconButton(
-                                        onPressed: () =>
-                                            cartModel.incrementQuantity(index),
-                                        icon: Icon(Icons.add),
-                                      ),
-                                    ],
-                                  ),
-                                  IconButton(
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: Text('Hapus Produk'),
-                                            content: Text(
-                                                'Apakah Anda yakin ingin menghapus produk ini dari keranjang?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.of(context).pop(); // Menutup dialog
-                                                },
-                                                child: Text('Batal'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  cartModel.removeItem(index); // Menghapus item dari keranjang
-                                                  Navigator.of(context).pop(); // Menutup dialog
-                                                },
-                                                child: Text(
-                                                  'Hapus',
-                                                  style: TextStyle(color: Colors.red),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 16),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red[800],
-                                    minimumSize: Size(50, 50)),
-                                onPressed: () {
-                                  // Menampilkan pesan pesanan telah dibuat
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text('Pesanan Dibuat'),
-                                        content: Text('Pesanan Anda telah berhasil dibuat!'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              // Menutup dialog tanpa mengarahkan ke StatusPage
-                                              Navigator.of(context).pop(); // Menutup dialog
-                                            },
-                                            child: Text('Tutup'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                child: Text(
-                                  'Bayar',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
+                        SizedBox(height: 16),
+                        Text(
+                          'Detail: ${order.description}',
+                          style: TextStyle(fontSize: 20, color: Colors.grey[600]),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Ukuran: ${order.size}',
+                          style: TextStyle(fontSize: 20, color: Colors.grey[600]),
+                        ),
+                        SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Jumlah: ${order.quantity}', style: TextStyle(fontSize: 20)),
+                            IconButton(
+                              onPressed: () {
+                                // Implementasikan penghapusan pesanan di sini
+                              },
+                              icon: Icon(Icons.delete, color: Colors.red),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[800], minimumSize: Size(50, 50)),
+                          onPressed: () {
+                            // Implementasikan aksi pembayaran jika perlu
+                          },
+                          child: Text(
+                            'Bayar',
+                            style: TextStyle(color: Colors.white),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
         },
       ),
     );

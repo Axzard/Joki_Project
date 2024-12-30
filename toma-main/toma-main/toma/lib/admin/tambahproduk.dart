@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'dart:io'; // Import untuk File
 import 'package:image_picker/image_picker.dart'; // Import untuk ImagePicker
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // Untuk encoding data JSON
+
+// Definisi enum untuk kategori produk
+enum KategoriProduk { Jersey, Syal, Aksesoris }
+
+extension KategoriProdukExtension on KategoriProduk {
+  String get name {
+    switch (this) {
+      case KategoriProduk.Jersey:
+        return 'Jersey';
+      case KategoriProduk.Syal:
+        return 'Syal';
+      case KategoriProduk.Aksesoris:
+        return 'Aksesoris';
+    }
+  }
+}
 
 class TambahProdukPage extends StatefulWidget {
-  final String kategori; // Menerima kategori sebagai parameter
-  TambahProdukPage({required this.kategori}); // Constructor untuk menerima kategori
+  TambahProdukPage(String s);
 
   @override
   _TambahProdukPageState createState() => _TambahProdukPageState();
@@ -15,20 +32,18 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   late String _name;
   late double _price;
   late String _details;
-  String? _selectedSize;
+  List<String> _sizes = []; // Menyimpan daftar ukuran
   File? _image;
-  late String _kategori; // Menyimpan kategori yang dipilih
-
-  @override
-  void initState() {
-    super.initState();
-    _kategori = widget.kategori; // Mengambil kategori dari halaman sebelumnya
-  }
+  KategoriProduk? _selectedCategory;
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk';
+  final TextEditingController _sizeController = TextEditingController();
 
   // Fungsi untuk memilih gambar menggunakan ImagePicker
   Future<void> pickImage() async {
     try {
-      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final pickedFile =
+          await ImagePicker().pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() {
           _image = File(pickedFile.path);
@@ -45,21 +60,66 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
     }
   }
 
-  // Fungsi untuk menyimpan data produk
+  // Fungsi untuk menambahkan ukuran baru
+  void addSize() {
+    if (_sizeController.text.isNotEmpty) {
+      setState(() {
+        _sizes.add(_sizeController.text);
+      });
+      _sizeController.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ukuran tidak boleh kosong')),
+      );
+    }
+  }
+
+  // Fungsi untuk menyimpan data produk ke Firebase
+  Future<void> saveProductToFirebase(Map<String, dynamic> productData) async {
+    try {
+      final url = Uri.parse('$firebaseUrl/${_selectedCategory!.name}.json');
+      final response = await http.post(
+        url,
+        body: jsonEncode(productData),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Produk berhasil disimpan!')),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan produk: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
   void saveProduct() {
-    if (_formKey.currentState!.validate() && _selectedSize != null && _image != null) {
+    if (_formKey.currentState!.validate() && _selectedCategory != null) {
+      _formKey.currentState!.save();
+
       final newProduct = {
         'name': _name,
         'price': _price,
         'details': _details,
-        'size': _selectedSize!,
-        'image': _image,  // Menambahkan gambar produk
-        'kategori': _kategori,  // Menyimpan kategori produk
+        'sizes': _sizes, // Daftar ukuran
+        'image': _image?.path ?? '', // Simpan path gambar lokal untuk contoh
+        'kategori': _selectedCategory!.name,
       };
-      Navigator.pop(context, newProduct);  // Mengirimkan data produk kembali ke halaman sebelumnya
+
+      saveProductToFirebase(newProduct); // Kirim data ke Firebase
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Harap isi semua bidang dan pilih gambar serta ukuran')),
+        SnackBar(
+            content: Text(
+                'Harap isi semua bidang, pilih gambar, dan kategori')),
       );
     }
   }
@@ -72,7 +132,8 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         automaticallyImplyLeading: false,
         title: Text(
           'Belanja',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white, size: 30),
@@ -89,31 +150,60 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
             children: [
               TextFormField(
                 decoration: InputDecoration(labelText: 'Nama Produk'),
-                validator: (value) => value!.isEmpty ? 'Nama produk tidak boleh kosong' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Nama produk tidak boleh kosong' : null,
                 onSaved: (value) => _name = value!,
               ),
               TextFormField(
                 decoration: InputDecoration(labelText: 'Harga Produk'),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Harga produk tidak boleh kosong' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Harga produk tidak boleh kosong' : null,
                 onSaved: (value) => _price = double.parse(value!),
               ),
               TextFormField(
                 decoration: InputDecoration(labelText: 'Detail Produk'),
                 maxLines: 3,
-                validator: (value) => value!.isEmpty ? 'Detail produk tidak boleh kosong' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Detail produk tidak boleh kosong' : null,
                 onSaved: (value) => _details = value!,
               ),
-              DropdownButtonFormField<String>(
-                hint: Text('Pilih Ukuran'),
-                items: ['M', 'L', 'XL']
-                    .map((size) => DropdownMenuItem(
-                          value: size,
-                          child: Text(size),
+              TextFormField(
+                controller: _sizeController,
+                decoration: InputDecoration(
+                  labelText: 'Tambahkan Ukuran',
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.add),
+                    onPressed: addSize,
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Wrap(
+                spacing: 8.0,
+                children: _sizes
+                    .map((size) => Chip(
+                          label: Text(size),
+                          onDeleted: () {
+                            setState(() {
+                              _sizes.remove(size);
+                            });
+                          },
                         ))
                     .toList(),
-                onChanged: (value) => _selectedSize = value,
-                validator: (value) => value == null ? 'Ukuran harus dipilih' : null,
+              ),
+              SizedBox(height: 10),
+              DropdownButtonFormField<KategoriProduk>(
+                hint: Text('Pilih Kategori'),
+                items: KategoriProduk.values
+                    .map((kategori) => DropdownMenuItem(
+                          value: kategori,
+                          child: Text(kategori.name),
+                        ))
+                    .toList(),
+                onChanged: (value) => _selectedCategory = value,
+                validator: (value) =>
+                    value == null ? 'Kategori harus dipilih' : null,
               ),
               SizedBox(height: 10),
               _image == null
@@ -127,17 +217,12 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                         _image!,
                         height: 250,
                         width: 200,
-                        fit: BoxFit.cover, // Menyesuaikan gambar agar sesuai tanpa terpotong
+                        fit: BoxFit.cover,
                       ),
                     ),
               SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    saveProduct();
-                  }
-                },
+                onPressed: saveProduct,
                 child: Text('Simpan'),
               ),
             ],

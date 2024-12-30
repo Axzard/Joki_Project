@@ -1,6 +1,6 @@
+import 'package:app_merchandise/user/home.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_merchandise/login/login.dart'; // LoginPage
 import 'package:app_merchandise/user/keranjang.dart'; // KeranjangPage
 import 'package:app_merchandise/user/jersy.dart'; // JerseyPage
 import 'package:app_merchandise/model/model.dart'; // CartModel
@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.red,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: LoginPage(),
+        home: HomeUserPage(),
         routes: {
           '/jersy': (context) => JerseyPage(),
           '/keranjang': (context) => KeranjangPage(),

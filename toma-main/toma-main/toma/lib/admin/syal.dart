@@ -1,7 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'statuspesanan.dart';
+import 'package:http/http.dart' as http;
 import 'tambahproduk.dart'; // Import halaman Tambah Produk
-import 'editproduk.dart';  // Import halaman Edit Produk
 
 class Syal extends StatefulWidget {
   @override
@@ -9,19 +10,52 @@ class Syal extends StatefulWidget {
 }
 
 class _SyalState extends State<Syal> {
-  List<Map<String, dynamic>> products = []; // Menyimpan daftar produk dengan gambar
+  List<Map<String, dynamic>> products = []; // Daftar produk
+
+  // Fungsi untuk mengambil produk dari Firebase
+  Future<void> fetchProducts() async {
+    final String firebaseUrl =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/Syal.json';
+
+    try {
+      final response = await http.get(Uri.parse(firebaseUrl));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+
+        setState(() {
+          products = data.values
+              .map((item) => {
+                    'name': item['name'],
+                    'price': item['price'],
+                    'details': item['details'],
+                    'size': item['size'],
+                    'image': item['image'],
+                  })
+              .toList();
+        });
+      } else {
+        // Jika gagal mengambil data
+        throw Exception('Gagal mengambil data');
+      }
+    } catch (e) {
+      // Tangani error jika gagal melakukan HTTP request
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts(); // Ambil data produk ketika halaman dimuat
+  }
 
   // Fungsi untuk menambah produk
   void addProduct(Map<String, dynamic> newProduct) {
     setState(() {
       products.add(newProduct); // Menambahkan produk baru ke list
-    });
-  }
-
-  // Fungsi untuk menghapus produk
-  void deleteProduct(Map<String, dynamic> product) {
-    setState(() {
-      products.removeWhere((prod) => prod['name'] == product['name']); // Menghapus produk berdasarkan nama
     });
   }
 
@@ -32,17 +66,21 @@ class _SyalState extends State<Syal> {
     });
   }
 
+  // Fungsi untuk menghapus produk
+  void deleteProduct(Map<String, dynamic> product) {
+    setState(() {
+      products.removeWhere((prod) => prod['name'] == product['name']); // Menghapus produk berdasarkan nama
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.red,
         automaticallyImplyLeading: false,
         title: Text(
-          'Kelolah Syel',
+          'Kelola Syal',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         leading: IconButton(
@@ -57,53 +95,29 @@ class _SyalState extends State<Syal> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo dan Judul
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30.0),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start, // Sejajarkan ke atas
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo dengan ukuran responsif
                     Image.asset(
                       'assets/logomalut.jpg',
-                      height: screenHeight * 0.3, // Ukuran logo disesuaikan
+                      height: 230,
                     ),
                     SizedBox(width: 15),
-                    // Teks Header
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Merchandise',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.06, // Ukuran font responsif
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[800],
-                          ),
-                        ),
-                        Text(
-                          'Malut',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.09, // Ukuran font responsif
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[800],
-                          ),
-                        ),
-                        Text(
-                          'United',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.09, // Ukuran font responsif
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[800],
-                          ),
-                        ),
+                        Text('Merchandise', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.red)),
+                        Text('Malut', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.red)),
+                        Text('United', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.red)),
                       ],
                     ),
                   ],
                 ),
               ),
               SizedBox(height: 10),
-              // Daftar Produk
+              // Daftar produk
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -113,18 +127,9 @@ class _SyalState extends State<Syal> {
                   ),
                   padding: EdgeInsets.all(16.0),
                   child: products.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Belum ada produk.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        )
+                      ? Center(child: Text('Belum ada produk.', style: TextStyle(color: Colors.white, fontSize: 16)))
                       : ListView.builder(
-                          itemCount: products.length, // Menampilkan jumlah produk yang ada
+                          itemCount: products.length,
                           itemBuilder: (context, index) {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16.0),
@@ -153,7 +158,6 @@ class _SyalState extends State<Syal> {
               ),
             ],
           ),
-          // Tombol Tambah Produk di kanan bawah
           Positioned(
             bottom: 16.0,
             right: 16.0,
@@ -162,18 +166,15 @@ class _SyalState extends State<Syal> {
                 final newProduct = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TambahProdukPage(kategori: 'Syal'), // Mengirimkan kategori
+                    builder: (context) => TambahProdukPage('Syal'),
                   ),
                 );
 
                 if (newProduct != null) {
-                  addProduct(newProduct); // Menambahkan produk baru setelah selesai
+                  addProduct(newProduct); // Menambahkan produk baru
                 }
               },
-              label: Text(
-                'Tambah Produk',
-                style: TextStyle(color: Colors.red),
-              ),
+              label: Text('Tambah Produk', style: TextStyle(color: Colors.red)),
               icon: Icon(Icons.add, color: Colors.red),
               backgroundColor: Colors.white,
             ),
@@ -182,6 +183,8 @@ class _SyalState extends State<Syal> {
       ),
     );
   }
+  
+  EditProdukPage({required Map<String, dynamic> product}) {}
 }
 
 class ProductCard extends StatelessWidget {
@@ -224,13 +227,27 @@ class ProductCard extends StatelessWidget {
                   color: Colors.red.shade50,
                 ),
                 child: product['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.file(product['image'], 
-                        height: 250,
-                        width: 200,
-                        fit: BoxFit.cover),
-                      )
+                    ? (product['image'] is String && product['image'].startsWith('http'))
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              product['image'], 
+                              height: 250,
+                              width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: File(product['image']).existsSync()
+                                ? Image.file(
+                                    File(product['image']),
+                                    height: 250,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Icon(Icons.image, size: 50, color: Colors.grey),
+                          )
                     : Icon(Icons.image, size: 50, color: Colors.grey),
               ),
               SizedBox(height: 8),
@@ -263,60 +280,15 @@ class ProductCard extends StatelessWidget {
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Flexible(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart, color: Colors.white, size: 16),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: TextButton(
-                                onPressed: () {
-                                  // Navigate to Statuspesanan and pass the product data
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Statuspesanan(
-                                        product: product, // Passing the product data
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(vertical: 10.0),
-                                  textStyle: TextStyle(fontSize: 14),
-                                ),
-                                child: Text(
-                                  'Masukkan keranjang',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.grey, size: 20),
+                      onPressed: onEdit,
                     ),
-                    SizedBox(width: 8),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit, color: Colors.grey, size: 20),
-                          onPressed: onEdit,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                          onPressed: () {
-                            onDelete(product);
-                          },
-                        ),
-                      ],
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                      onPressed: () {
+                        onDelete(product);
+                      },
                     ),
                   ],
                 ),

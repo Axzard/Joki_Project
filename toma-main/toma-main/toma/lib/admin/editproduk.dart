@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Add image_picker package
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http; // Tambahkan http untuk komunikasi dengan Firebase
+import 'dart:convert'; // Untuk encoding data JSON
 
 enum ProductSize { S, M, L, XL, XXL }
 
@@ -31,6 +33,9 @@ class EditProdukPage extends StatefulWidget {
 }
 
 class _EditProdukPageState extends State<EditProdukPage> {
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk';
+  
   late TextEditingController nameController;
   late TextEditingController priceController;
   late TextEditingController detailsController;
@@ -44,10 +49,9 @@ class _EditProdukPageState extends State<EditProdukPage> {
     nameController = TextEditingController(text: widget.product['name']);
     priceController = TextEditingController(text: widget.product['price'].toString());
     detailsController = TextEditingController(text: widget.product['details']);
-    // Convert size string to enum
     selectedSize = ProductSize.values.firstWhere(
-        (e) => e.name == widget.product['size'],
-        orElse: () => ProductSize.M,
+      (e) => e.name == widget.product['size'],
+      orElse: () => ProductSize.M,
     );
   }
 
@@ -59,7 +63,6 @@ class _EditProdukPageState extends State<EditProdukPage> {
     super.dispose();
   }
 
-  // Pick an image using ImagePicker
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -71,27 +74,54 @@ class _EditProdukPageState extends State<EditProdukPage> {
     }
   }
 
+  Future<void> updateProductInFirebase(Map<String, dynamic> updatedProduct) async {
+    try {
+      final String productId = widget.product['id']; // Gunakan ID produk
+      final Uri url = Uri.parse('$firebaseUrl/$productId.json'); // Targetkan produk berdasarkan ID
+
+      final response = await http.patch(
+        url,
+        body: jsonEncode(updatedProduct),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Produk berhasil diperbarui!')),
+        );
+        Navigator.pop(context, updatedProduct);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memperbarui produk: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
   void saveProduct() {
     final updatedProduct = {
       'name': nameController.text,
       'price': double.parse(priceController.text),
       'details': detailsController.text,
       'size': selectedSize.name,
-      'image': _image ?? widget.product['image'], // Use selected image or keep the old one
+      'image': _image?.path ?? widget.product['image'], // Simpan gambar baru atau gunakan yang lama
     };
 
-    // Return the updated product to the previous screen
-    Navigator.pop(context, updatedProduct);
+    updateProductInFirebase(updatedProduct); // Simpan ke Firebase
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     appBar: AppBar(
+      appBar: AppBar(
         backgroundColor: Colors.red,
         automaticallyImplyLeading: false,
         title: Text(
-          'Belanja',
+          'Edit Produk',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         leading: IconButton(
@@ -101,7 +131,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
           },
         ),
       ),
-      body: SingleChildScrollView( // Wrap the entire body in a SingleChildScrollView
+      body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,11 +152,10 @@ class _EditProdukPageState extends State<EditProdukPage> {
               decoration: InputDecoration(labelText: 'Detail Produk'),
             ),
             SizedBox(height: 16),
-            // Dropdown for selecting size
             Row(
               children: [
                 Text('Ukuran: ', style: TextStyle(fontSize: 16)),
-                Expanded( // Ensures the dropdown fits on smaller screens
+                Expanded(
                   child: DropdownButton<ProductSize>(
                     isExpanded: true,
                     value: selectedSize,
@@ -148,7 +177,6 @@ class _EditProdukPageState extends State<EditProdukPage> {
               ],
             ),
             SizedBox(height: 16),
-            // Image picker
             GestureDetector(
               onTap: pickImage,
               child: Container(

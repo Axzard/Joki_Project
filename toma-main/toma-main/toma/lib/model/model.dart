@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class Product {
   final String name;
   final String image;
-  final String price;
+  final double price;
   final String description;
   final List<String> availableSizes;
   String? selectedSize;
@@ -17,7 +17,7 @@ class Product {
     required this.description,
     required this.availableSizes,
     this.selectedSize,
-    this.quantity = 1,
+    this.quantity = 1, required String id,
   });
 
   /// Konversi produk ke JSON untuk penyimpanan
@@ -42,9 +42,11 @@ class Product {
       description: json['description'],
       availableSizes: List<String>.from(json['availableSizes']),
       selectedSize: json['selectedSize'],
-      quantity: json['quantity'],
+      quantity: json['quantity'], id: '',
     );
   }
+
+  get id => null;
 }
 
 /// Model Keranjang Belanja
@@ -118,7 +120,7 @@ class CartModel extends ChangeNotifier {
   /// Menghitung total harga keranjang
   double calculateTotalPrice() {
     return _cartItems.fold(0.0, (sum, item) {
-      return sum + (double.tryParse(item.price) ?? 0) * item.quantity;
+      return sum + (double.tryParse(item.price as String) ?? 0) * item.quantity;
     });
   }
 

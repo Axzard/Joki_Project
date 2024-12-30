@@ -1,15 +1,58 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'statuspesanan.dart';
+import 'package:http/http.dart' as http;
 import 'tambahproduk.dart'; // Import halaman Tambah Produk
 import 'editproduk.dart';  // Import halaman Edit Produk
 
 class Aksesoris extends StatefulWidget {
   @override
-  _SyalState createState() => _SyalState();
+  _AksesorisState createState() => _AksesorisState();
 }
 
-class _SyalState extends State<Aksesoris> {
+class _AksesorisState extends State<Aksesoris> {
   List<Map<String, dynamic>> products = []; // Menyimpan daftar produk dengan gambar
+
+  // URL Firebase Realtime Database
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/Aksesoris.json';
+
+  // Fungsi untuk mengambil produk dari Firebase
+  Future<void> fetchProducts() async {
+    try {
+      final response = await http.get(Uri.parse(firebaseUrl));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+
+        setState(() {
+          products = data.values
+              .map((item) => {
+                    'name': item['name'],
+                    'price': item['price'],
+                    'details': item['details'],
+                    'size': item['size'],
+                    'image': item['image'],
+                  })
+              .toList();
+        });
+      } else {
+        // Jika gagal mengambil data
+        throw Exception('Gagal mengambil data');
+      }
+    } catch (e) {
+      // Tangani error jika gagal melakukan HTTP request
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts(); // Ambil data produk ketika halaman dimuat
+  }
 
   // Fungsi untuk menambah produk
   void addProduct(Map<String, dynamic> newProduct) {
@@ -42,7 +85,7 @@ class _SyalState extends State<Aksesoris> {
         backgroundColor: Colors.red,
         automaticallyImplyLeading: false,
         title: Text(
-          'Kelolah Aksesoris',
+          'Kelola Aksesoris',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         leading: IconButton(
@@ -162,7 +205,7 @@ class _SyalState extends State<Aksesoris> {
                 final newProduct = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TambahProdukPage(kategori: 'Syal'), // Mengirimkan kategori
+                    builder: (context) => TambahProdukPage('Aksesoris'), // Mengirimkan kategori
                   ),
                 );
 
@@ -224,13 +267,27 @@ class ProductCard extends StatelessWidget {
                   color: Colors.red.shade50,
                 ),
                 child: product['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.file(product['image'], 
-                        height: 250,
-                        width: 200,
-                        fit: BoxFit.cover),
-                      )
+                    ? (product['image'] is String && product['image'].startsWith('http'))
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              product['image'], 
+                              height: 250,
+                              width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: File(product['image']).existsSync()
+                                ? Image.file(
+                                    File(product['image']),
+                                    height: 250,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Icon(Icons.image, size: 50, color: Colors.grey),
+                          )
                     : Icon(Icons.image, size: 50, color: Colors.grey),
               ),
               SizedBox(height: 8),
@@ -263,46 +320,6 @@ class ProductCard extends StatelessWidget {
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Flexible(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart, color: Colors.white, size: 16),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: TextButton(
-                                onPressed: () {
-                                  // Navigate to Statuspesanan and pass the product data
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Statuspesanan(
-                                        product: product, // Passing the product data
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(vertical: 10.0),
-                                  textStyle: TextStyle(fontSize: 14),
-                                ),
-                                child: Text(
-                                  'Masukkan keranjang',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     SizedBox(width: 8),
                     Row(
                       children: [

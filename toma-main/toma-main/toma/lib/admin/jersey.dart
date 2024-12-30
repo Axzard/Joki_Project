@@ -1,7 +1,10 @@
-import 'package:app_merchandise/admin/statuspesanan.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'editproduk.dart';  // Import halaman Edit Produk
 import 'tambahproduk.dart'; // Import halaman Tambah Produk
+
 
 class Jersey extends StatefulWidget {
   @override
@@ -10,6 +13,45 @@ class Jersey extends StatefulWidget {
 
 class _JerseyState extends State<Jersey> {
   List<Map<String, dynamic>> products = []; // Daftar produk
+
+  // Fungsi untuk mengambil produk dari Firebase
+  Future<void> fetchProducts() async {
+    final String firebaseUrl =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/Jersey.json';
+
+    try {
+      final response = await http.get(Uri.parse(firebaseUrl));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+
+        setState(() {
+          products = data.entries
+              .map((entry) => {
+                    'id': entry.key, // Menyimpan ID produk sebagai key dari Firebase
+                    'name': entry.value['name'],
+                    'price': entry.value['price'],
+                    'details': entry.value['details'],
+                    'size': entry.value['size'],
+                    'image': entry.value['image'],
+                  })
+              .toList();
+        });
+      } else {
+        throw Exception('Gagal mengambil data');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts(); // Ambil data produk ketika halaman dimuat
+  }
 
   // Fungsi untuk menambah produk
   void addProduct(Map<String, dynamic> newProduct) {
@@ -25,11 +67,39 @@ class _JerseyState extends State<Jersey> {
     });
   }
 
-  // Fungsi untuk menghapus produk
-  void deleteProduct(Map<String, dynamic> product) {
+  // Fungsi untuk menghapus produk dari Firebase
+  Future<void> deleteProductFromFirebase(String productId) async {
+    final String firebaseUrl =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/Jersey/$productId.json';
+
+    try {
+      final response = await http.delete(Uri.parse(firebaseUrl));
+
+      if (response.statusCode == 200) {
+        // Produk berhasil dihapus dari Firebase
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Produk berhasil dihapus!')),
+        );
+      } else {
+        throw Exception('Gagal menghapus produk');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
+  // Fungsi untuk menghapus produk dari daftar dan Firebase
+  void deleteProduct(Map<String, dynamic> product) async {
     setState(() {
-      products.removeWhere((prod) => prod['name'] == product['name']); // Menghapus produk berdasarkan nama
+      // Menghapus produk dari daftar lokal terlebih dahulu
+      products.removeWhere((prod) => prod['id'] == product['id']);
     });
+
+    // Menghapus produk dari Firebase berdasarkan ID produk
+    String productId = product['id']; // Pastikan produk memiliki ID yang unik
+    await deleteProductFromFirebase(productId); // Menghapus produk dari Firebase
   }
 
   @override
@@ -39,7 +109,7 @@ class _JerseyState extends State<Jersey> {
         backgroundColor: Colors.red,
         automaticallyImplyLeading: false,
         title: Text(
-          'Keleolah Baju Jersy',
+          'Kelola Baju Jersey',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
         ),
         leading: IconButton(
@@ -67,9 +137,9 @@ class _JerseyState extends State<Jersey> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Merchandise', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color:Colors.red)),
-                        Text('Malut', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color:Colors.red)),
-                        Text('United', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color:Colors.red)),
+                        Text('Merchandise', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.red)),
+                        Text('Malut', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.red)),
+                        Text('United', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.red)),
                       ],
                     ),
                   ],
@@ -86,7 +156,7 @@ class _JerseyState extends State<Jersey> {
                   ),
                   padding: EdgeInsets.all(16.0),
                   child: products.isEmpty
-                      ? Center(child: Text('Belum ada produk.', style: TextStyle(color: Colors.white,fontSize: 16)))
+                      ? Center(child: Text('Belum ada produk.', style: TextStyle(color: Colors.white, fontSize: 16)))
                       : ListView.builder(
                           itemCount: products.length,
                           itemBuilder: (context, index) {
@@ -125,7 +195,7 @@ class _JerseyState extends State<Jersey> {
                 final newProduct = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TambahProdukPage(kategori: 'Jersey'),
+                    builder: (context) => TambahProdukPage('Jersey'),
                   ),
                 );
 
@@ -184,13 +254,27 @@ class ProductCard extends StatelessWidget {
                   color: Colors.red.shade50,
                 ),
                 child: product['image'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.file(product['image'], 
-                        height: 250,
-                        width: 200,
-                        fit: BoxFit.cover),
-                      )
+                    ? (product['image'] is String && product['image'].startsWith('http'))
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              product['image'], 
+                              height: 250,
+                              width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: File(product['image']).existsSync()
+                                ? Image.file(
+                                    File(product['image']),
+                                    height: 250,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Icon(Icons.image, size: 50, color: Colors.grey),
+                          )
                     : Icon(Icons.image, size: 50, color: Colors.grey),
               ),
               SizedBox(height: 8),
@@ -223,60 +307,15 @@ class ProductCard extends StatelessWidget {
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Flexible(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart, color: Colors.white, size: 16),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: TextButton(
-                                onPressed: () {
-                                  // Navigate to Statuspesanan and pass the product data
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Statuspesanan(
-                                        product: product, // Passing the product data
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(vertical: 10.0),
-                                  textStyle: TextStyle(fontSize: 14),
-                                ),
-                                child: Text(
-                                  'Masukkan keranjang',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.grey, size: 20),
+                      onPressed: onEdit,
                     ),
-                    SizedBox(width: 8),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit, color: Colors.grey, size: 20),
-                          onPressed: onEdit,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                          onPressed: () {
-                            onDelete(product);
-                          },
-                        ),
-                      ],
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                      onPressed: () {
+                        onDelete(product); // Menghapus produk menggunakan onDelete
+                      },
                     ),
                   ],
                 ),

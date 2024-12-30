@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ForgetPasswordPage extends StatefulWidget {
   @override
@@ -8,6 +10,106 @@ class ForgetPasswordPage extends StatefulWidget {
 class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  final TextEditingController _fullnameController = TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna.json';
+
+  Future<void> _resetPassword() async {
+    String fullname = _fullnameController.text.trim();
+    String newPassword = _newPasswordController.text.trim();
+    String confirmPassword = _confirmPasswordController.text.trim();
+
+    if (fullname.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Harap isi semua field!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Password baru dan konfirmasi password tidak cocok!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Fetch data dari Firebase
+      final response = await http.get(Uri.parse(firebaseUrl));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        String? namakey;
+        bool userExists = false;
+
+        // Cari pengguna berdasarkan nama lengkap
+        data.forEach((key, value) {
+          if (value['nama'] == fullname) {
+            userExists = true;
+            namakey = key;
+          }
+        });
+
+        if (userExists) {
+          // Update password di Firebase
+          final updateResponse = await http.patch(
+            Uri.parse(
+                'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/$namakey.json'),
+            body: jsonEncode({'password': newPassword}),
+          );
+
+          if (updateResponse.statusCode == 200) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Password berhasil diubah!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pop(context); // Kembali ke halaman login
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal memperbarui password.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Nama lengkap tidak ditemukan!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal terhubung ke server: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +154,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                   child: Column(
                     children: [
                       TextField(
+                        controller: _fullnameController,
                         decoration: InputDecoration(
-                          hintText: 'Masukkan username',
+                          hintText: 'Masukkan nama lengkap',
                           hintStyle: TextStyle(color: Colors.red[800]),
                           filled: true,
                           fillColor: Colors.white,
@@ -65,6 +168,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                       ),
                       SizedBox(height: 20),
                       TextField(
+                        controller: _newPasswordController,
                         obscureText: !_isPasswordVisible,
                         decoration: InputDecoration(
                           hintText: 'Masukkan password baru',
@@ -92,6 +196,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                       ),
                       SizedBox(height: 20),
                       TextField(
+                        controller: _confirmPasswordController,
                         obscureText: !_isConfirmPasswordVisible,
                         decoration: InputDecoration(
                           hintText: 'Masukkan konfirmasi password',
@@ -120,9 +225,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                       ),
                       SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
-                          
-                        },
+                        onPressed: _resetPassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
