@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'tambahproduk.dart'; // Import halaman Tambah Produk
-import 'editproduk.dart';  // Import halaman Edit Produk
+import 'editproduk.dart'; // Import halaman Edit Produk
 
 class Aksesoris extends StatefulWidget {
   @override
@@ -26,13 +26,14 @@ class _AksesorisState extends State<Aksesoris> {
         final data = json.decode(response.body) as Map<String, dynamic>;
 
         setState(() {
-          products = data.values
-              .map((item) => {
-                    'name': item['name'],
-                    'price': item['price'],
-                    'details': item['details'],
-                    'size': item['size'],
-                    'image': item['image'],
+          products = data.entries
+              .map((entry) => {
+                    'id': entry.key, // Tambahkan ID produk
+                    'name': entry.value['name'],
+                    'price': entry.value['price'],
+                    'details': entry.value['details'],
+                    'sizes': entry.value['sizes'],
+                    'image': entry.value['image'],
                   })
               .toList();
         });
@@ -61,11 +62,35 @@ class _AksesorisState extends State<Aksesoris> {
     });
   }
 
+  // Fungsi untuk menghapus produk dari Firebase
+  Future<void> deleteProductFromFirebase(Map<String, dynamic> product) async {
+    try {
+      final productId = product['id']; // Pastikan setiap produk memiliki ID unik
+      final url = Uri.parse(
+          'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/Aksesoris/$productId.json');
+
+      final response = await http.delete(url);
+
+      if (response.statusCode == 200) {
+        setState(() {
+          products.removeWhere((prod) => prod['id'] == productId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Produk berhasil dihapus')),
+        );
+      } else {
+        throw Exception('Gagal menghapus produk');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
+  }
+
   // Fungsi untuk menghapus produk
   void deleteProduct(Map<String, dynamic> product) {
-    setState(() {
-      products.removeWhere((prod) => prod['name'] == product['name']); // Menghapus produk berdasarkan nama
-    });
+    deleteProductFromFirebase(product);
   }
 
   // Fungsi untuk mengedit produk
@@ -179,7 +204,7 @@ class _AksesorisState extends State<Aksesoris> {
                                   final updatedProduct = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => EditProdukPage(product: products[index]),
+                                      builder: (context) => EditProdukPage(product: products[index], category: 'Aksesoris',),
                                     ),
                                   );
 
@@ -314,7 +339,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Ukuran: ${product['size'] ?? 'M, L, XL'}',
+                  'Ukuran: ${product['sizes'] ?? 'M, L, XL'}',
                   style: TextStyle(fontSize: 12, color: Colors.black),
                 ),
                 SizedBox(height: 12),

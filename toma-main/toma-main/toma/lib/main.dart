@@ -1,3 +1,5 @@
+import 'package:app_merchandise/admin/home.dart';
+import 'package:app_merchandise/login/login.dart';
 import 'package:app_merchandise/user/home.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,7 +34,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.red,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: HomeUserPage(),
+        home: AdminHomePage(),
         routes: {
           '/jersy': (context) => JerseyPage(),
           '/keranjang': (context) => KeranjangPage(),

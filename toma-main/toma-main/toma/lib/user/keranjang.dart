@@ -27,12 +27,12 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json, String id) {
     return Order(
       id: id,
-      name: json['name'],
-      image: json['image'], // Path gambar lokal atau URL gambar
-      price: json['price'] is double ? json['price'].toString() : json['price'],
-      size: json['size'],
-      quantity: json['quantity'] is double ? json['quantity'].toInt() : json['quantity'],
-      description: json['description'],
+      name: json['name'] ?? '',
+      image: json['image'] ?? '',
+      price: json['price'] is double ? json['price'].toString() : json['price'] ?? '0',
+      size: json['size'] ?? '',
+      quantity: json['quantity'] is double ? json['quantity'].toInt() : json['quantity'] ?? 0,
+      description: json['description'] ?? '',
     );
   }
 }
@@ -46,10 +46,19 @@ class KeranjangPage extends StatelessWidget {
     try {
       final response = await http.get(Uri.parse(firebaseUrl));
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic>? data = jsonDecode(response.body);
+
+        // Cek apakah data kosong atau null
+        if (data == null || data.isEmpty) {
+          return [];
+        }
+
         final List<Order> orders = [];
+        // Periksa apakah data berupa map yang valid dan bukan null
         data.forEach((key, orderData) {
-          orders.add(Order.fromJson(orderData, key));
+          if (orderData != null) {
+            orders.add(Order.fromJson(orderData, key));
+          }
         });
         return orders;
       } else {
@@ -57,6 +66,44 @@ class KeranjangPage extends StatelessWidget {
       }
     } catch (e) {
       throw Exception('Error fetching orders: $e');
+    }
+  }
+
+  // Fungsi untuk menghapus pesanan
+  Future<void> deleteOrder(String id) async {
+    final url =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan/$id.json';
+    try {
+      final response = await http.delete(Uri.parse(url));
+      if (response.statusCode != 200) {
+        throw Exception('Gagal menghapus pesanan');
+      }
+    } catch (e) {
+      throw Exception('Error deleting order: $e');
+    }
+  }
+
+  // Fungsi untuk memperbarui status pembayaran pesanan
+  Future<void> updatePaymentStatus(String orderId) async {
+    final url =
+        'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan/$orderId.json';
+
+    try {
+      final response = await http.patch(
+        Uri.parse(url),
+        body: json.encode({
+          'pembayaran': 'telah dibayar', // Menambahkan status pembayaran
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Jika berhasil, beri feedback ke pengguna
+        return;
+      } else {
+        throw Exception('Gagal memperbarui status pembayaran');
+      }
+    } catch (e) {
+      throw Exception('Error updating payment status: $e');
     }
   }
 
@@ -85,7 +132,7 @@ class KeranjangPage extends StatelessWidget {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('Keranjang kosong'));
+            return Center(child: Text('Belum ada pesanan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)));
           }
 
           final List<Order> orders = snapshot.data!;
@@ -157,8 +204,41 @@ class KeranjangPage extends StatelessWidget {
                           children: [
                             Text('Jumlah: ${order.quantity}', style: TextStyle(fontSize: 20)),
                             IconButton(
-                              onPressed: () {
-                                // Implementasikan penghapusan pesanan di sini
+                              onPressed: () async {
+                                bool confirm = await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('Konfirmasi'),
+                                      content: Text('Apakah Anda yakin ingin menghapus pesanan ini?'),
+                                      actions: [
+                                        TextButton(
+                                          child: Text('Batal'),
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                        ),
+                                        TextButton(
+                                          child: Text('Hapus'),
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+
+                                if (confirm) {
+                                  try {
+                                    await deleteOrder(order.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Pesanan berhasil dihapus')),
+                                    );
+                                    // Refresh data setelah penghapusan
+                                    (context as Element).reassemble();
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Gagal menghapus pesanan: $e')),
+                                    );
+                                  }
+                                }
                               },
                               icon: Icon(Icons.delete, color: Colors.red),
                             ),
@@ -168,8 +248,18 @@ class KeranjangPage extends StatelessWidget {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red[800], minimumSize: Size(50, 50)),
-                          onPressed: () {
-                            // Implementasikan aksi pembayaran jika perlu
+                          onPressed: () async {
+                            // Update status pembayaran ketika tombol "Bayar" ditekan
+                            try {
+                              await updatePaymentStatus(order.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Pembayaran berhasil dilakukan')),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal memperbarui status pembayaran: $e')),
+                              );
+                            }
                           },
                           child: Text(
                             'Bayar',

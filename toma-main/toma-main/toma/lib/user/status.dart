@@ -1,6 +1,52 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:app_merchandise/model/model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Model untuk pesanan
+class Order {
+  final String id;
+  final String name;
+  final String image; // path file image lokal
+  final String price;
+  final String size;
+  final int quantity;
+  final String description;
+  final String status; // Status pengiriman
+  final String pembayaran; // Status pembayaran
+
+  Order({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.price,
+    required this.size,
+    required this.quantity,
+    required this.description,
+    required this.status,
+    required this.pembayaran,
+  });
+
+  // Fungsi untuk membuat instansi Order dari JSON
+  factory Order.fromJson(Map<String, dynamic> json, String id) {
+    return Order(
+      id: id,
+      name: json['name'] ?? '',
+      image: json['image'] ?? '',
+      price: json['price'] is double
+          ? json['price'].toString()
+          : json['price'] ?? '0',
+      size: json['size'] ?? '',
+      quantity: json['quantity'] is double
+          ? json['quantity'].toInt()
+          : json['quantity'] ?? 0,
+      description: json['description'] ?? '',
+      status: json['status'] ?? 'belum di antar', // Default status
+      pembayaran: json['pembayaran'] ?? 'belum dibayar', // Default pembayaran
+    );
+  }
+}
 
 class StatusPage extends StatefulWidget {
   @override
@@ -8,18 +54,37 @@ class StatusPage extends StatefulWidget {
 }
 
 class _StatusPageState extends State<StatusPage> {
-  List<Product> localOrderedItems = [];
+  List<Order> orders = [];
+
+  final String firebaseUrl =
+      'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json';
 
   @override
   void initState() {
     super.initState();
-    // Menunda akses ke context sampai setelah widget selesai dibangun
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final cartModel = Provider.of<CartModel>(context, listen: false);
-      setState(() {
-        localOrderedItems = List.from(cartModel.getCartItems());
-      });
-    });
+    _fetchOrders();
+  }
+
+  // Fungsi untuk mengambil data pesanan dari Firebase
+  Future<void> _fetchOrders() async {
+    try {
+      final response = await http.get(Uri.parse(firebaseUrl));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data != null) {
+          setState(() {
+            orders = [];
+            data.forEach((key, orderData) {
+              orders.add(Order.fromJson(orderData, key));
+            });
+          });
+        }
+      } else {
+        throw Exception('Gagal memuat pesanan');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
   }
 
   @override
@@ -43,7 +108,7 @@ class _StatusPageState extends State<StatusPage> {
           },
         ),
       ),
-      body: localOrderedItems.isEmpty
+      body: orders.isEmpty
           ? Center(
               child: Text(
                 'Tidak ada pesanan',
@@ -51,9 +116,9 @@ class _StatusPageState extends State<StatusPage> {
               ),
             )
           : ListView.builder(
-              itemCount: localOrderedItems.length,
+              itemCount: orders.length,
               itemBuilder: (context, index) {
-                var product = localOrderedItems[index];
+                var order = orders[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0, vertical: 8.0),
@@ -68,13 +133,21 @@ class _StatusPageState extends State<StatusPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Image.asset(
-                                product.image,
+                              Container(
                                 width: 150,
                                 height: 150,
-                                fit: BoxFit.cover,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  image: DecorationImage(
+                                    image: order.image.isNotEmpty
+                                        ? FileImage(File(order
+                                            .image)) // Gambar dari file lokal
+                                        : AssetImage('assets/placeholder.jpg')
+                                            as ImageProvider,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
                               SizedBox(width: 16),
                               Expanded(
@@ -82,131 +155,32 @@ class _StatusPageState extends State<StatusPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      product.name,
+                                      order.name,
                                       style: TextStyle(
-                                        fontSize: 25,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                          fontSize: 25,
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     SizedBox(height: 8),
                                     Text(
-                                      'Detail: ${product.description}',
-                                      style: TextStyle(fontSize: 20),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Harga: Rp ${product.price}',
-                                      style: TextStyle(fontSize: 20),
+                                      'Rp. ${order.price}',
+                                      style: TextStyle(
+                                          fontSize: 20,
+                                          color: Colors.grey[700]),
                                     ),
                                   ],
                                 ),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  // Menampilkan dialog konfirmasi
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text('Konfirmasi'),
-                                        content: Text(
-                                            'Apakah Anda yakin ingin menghapus item ini?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(context).pop();
-                                            },
-                                            child: Text('Batal'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                localOrderedItems
-                                                    .removeAt(index);
-                                              });
-                                              Navigator.of(context).pop();
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                      'Item berhasil dihapus.'),
-                                                ),
-                                              );
-                                            },
-                                            child: Text('Hapus'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                icon: Icon(Icons.delete),
-                                color: Colors.red,
                               ),
                             ],
                           ),
                           SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'Ukuran: ',
-                                      style: TextStyle(fontSize: 20),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: product.selectedSize ??
-                                          product.availableSizes.first,
-                                      onChanged: (newSize) {
-                                        setState(() {
-                                          product.selectedSize = newSize;
-                                        });
-                                      },
-                                      items: product.availableSizes
-                                          .map<DropdownMenuItem<String>>(
-                                              (String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Jumlah: ',
-                                      style: TextStyle(fontSize: 20),
-                                    ),
-                                    SizedBox(
-                                      width: 50,
-                                      child: TextField(
-                                        controller: TextEditingController(
-                                          text: product.quantity.toString(),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        onSubmitted: (value) {
-                                          int? newQuantity =
-                                              int.tryParse(value);
-                                          if (newQuantity != null &&
-                                              newQuantity > 0) {
-                                            setState(() {
-                                              product.quantity = newQuantity;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Status Pengiriman: ${order.status}',
+                            style: TextStyle(fontSize: 20, color: Colors.grey),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Pembayaran: ${order.pembayaran}',
+                            style: TextStyle(fontSize: 20, color: Colors.grey),
                           ),
                         ],
                       ),

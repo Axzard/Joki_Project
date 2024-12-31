@@ -1,14 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class GrafikPenjualan extends StatelessWidget {
+class GrafikPenjualan extends StatefulWidget {
+  @override
+  _GrafikPenjualanState createState() => _GrafikPenjualanState();
+}
+
+class _GrafikPenjualanState extends State<GrafikPenjualan> {
+  // Variabel untuk menyimpan jumlah pesanan produk
+  Map<String, int> produkPesanan = {
+    'Jersey': 0,
+    'Syal': 0,
+    'Aksesoris': 0,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData(); // Ambil data pesanan saat halaman dimuat
+  }
+
+  // Mengambil data dari Firebase Realtime Database
+  Future<void> _fetchData() async {
+    final url = 'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk.json';
+
+    try {
+      // Meminta data dari Firebase
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        // Mengubah data JSON menjadi Map
+        final data = json.decode(response.body);
+
+        // Memproses data untuk menghitung jumlah pesanan
+        setState(() {
+          produkPesanan['Jersey'] = data['Jersey'] ?? 0;
+          produkPesanan['Syal'] = data['Syal'] ?? 0;
+          produkPesanan['Aksesoris'] = data['Aksesoris'] ?? 0;
+        });
+      } else {
+        throw Exception('Gagal memuat data');
+      }
+    } catch (error) {
+      print('Error: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-
-    
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
 
-    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -28,26 +71,23 @@ class GrafikPenjualan extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with logo and text
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 30.0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // Sejajarkan ke atas
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Logo dengan ukuran responsif
                 Image.asset(
                   'assets/logomalut.jpg',
-                  height: screenHeight * 0.3, // Ukuran logo disesuaikan
+                  height: screenHeight * 0.3,
                 ),
                 SizedBox(width: 15),
-                // Teks Header
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Merchandise',
                       style: TextStyle(
-                        fontSize: screenWidth * 0.06, // Ukuran font responsif
+                        fontSize: screenWidth * 0.06,
                         fontWeight: FontWeight.bold,
                         color: Colors.red[800],
                       ),
@@ -55,7 +95,7 @@ class GrafikPenjualan extends StatelessWidget {
                     Text(
                       'Malut',
                       style: TextStyle(
-                        fontSize: screenWidth * 0.09, // Ukuran font responsif
+                        fontSize: screenWidth * 0.09,
                         fontWeight: FontWeight.bold,
                         color: Colors.red[800],
                       ),
@@ -63,7 +103,7 @@ class GrafikPenjualan extends StatelessWidget {
                     Text(
                       'United',
                       style: TextStyle(
-                        fontSize: screenWidth * 0.09, // Ukuran font responsif
+                        fontSize: screenWidth * 0.09,
                         fontWeight: FontWeight.bold,
                         color: Colors.red[800],
                       ),
@@ -72,9 +112,8 @@ class GrafikPenjualan extends StatelessWidget {
                 ),
               ],
             ),
-              ),
+          ),
           SizedBox(height: 20),
-          // Sales report graph
           Expanded(
             child: Container(
               padding: EdgeInsets.all(20),
@@ -82,17 +121,16 @@ class GrafikPenjualan extends StatelessWidget {
                 color: Colors.red[800],
                 borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
               ),
-              child: SingleChildScrollView( // Menambahkan scroll view untuk menghindari overflow
+              child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Text "Sales Report Graph"
                     Center(
                       child: Text(
                         'Grafik laporan penjualan',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: MediaQuery.of(context).size.width * 0.07, // Ukuran font responsif
+                          fontSize: screenWidth * 0.07,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -101,21 +139,21 @@ class GrafikPenjualan extends StatelessWidget {
                     _buildGrafikContainer(
                       child: _buildGrafikItem(
                         icon: Icons.sports_soccer,
-                        percentage: 20,
+                        percentage: produkPesanan['Jersey'] ?? 0,
                       ),
                     ),
                     SizedBox(height: 10),
                     _buildGrafikContainer(
                       child: _buildGrafikItem(
                         icon: Icons.shopping_bag,
-                        percentage: 40,
+                        percentage: produkPesanan['Syal'] ?? 0,
                       ),
                     ),
                     SizedBox(height: 10),
                     _buildGrafikContainer(
                       child: _buildGrafikItem(
                         icon: Icons.star_border,
-                        percentage: 70,
+                        percentage: produkPesanan['Aksesoris'] ?? 0,
                       ),
                     ),
                   ],
@@ -130,11 +168,11 @@ class GrafikPenjualan extends StatelessWidget {
 
   Widget _buildGrafikContainer({required Widget child}) {
     return Container(
-      padding: EdgeInsets.all(25), // Padding for larger container
-      margin: EdgeInsets.symmetric(vertical: 10), // Add vertical margin for spacing
+      padding: EdgeInsets.all(25),
+      margin: EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18), // More rounded corners
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
@@ -150,8 +188,8 @@ class GrafikPenjualan extends StatelessWidget {
   Widget _buildGrafikItem({required IconData icon, required int percentage}) {
     return Row(
       children: [
-        Icon(icon, size: 80, color: Colors.black), // Increased icon size for better visibility
-        SizedBox(width: 25), // Increased space between icon and the progress bar
+        Icon(icon, size: 80, color: Colors.black),
+        SizedBox(width: 25),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,34 +197,31 @@ class GrafikPenjualan extends StatelessWidget {
               SizedBox(height: 15),
               Stack(
                 children: [
-                  // Background of the progress bar
                   Container(
-                    height: 50, // Increased height of the bar for better visibility
+                    height: 50,
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(25),
                     ),
                   ),
-                  // Progress of the bar
                   Container(
                     height: 50,
-                    width: percentage.toDouble() * 2, // Scaling the progress width
+                    width: percentage.toDouble() * 2,
                     decoration: BoxDecoration(
                       color: Colors.red[600],
                       borderRadius: BorderRadius.circular(25),
                     ),
                   ),
-                  // Percentage text inside the progress bar, aligned to the left
                   Positioned(
-                    left: 8, // Align to the left inside the progress bar
+                    left: 8,
                     top: 0,
                     bottom: 0,
                     child: Center(
                       child: Text(
-                        '$percentage%',
+                        '$percentage',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 16, // Reduced font size for better fit
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

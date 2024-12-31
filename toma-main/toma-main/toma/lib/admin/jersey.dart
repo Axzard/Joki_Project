@@ -32,7 +32,7 @@ class _JerseyState extends State<Jersey> {
                     'name': entry.value['name'],
                     'price': entry.value['price'],
                     'details': entry.value['details'],
-                    'size': entry.value['size'],
+                    'sizes': entry.value['sizes'],
                     'image': entry.value['image'],
                   })
               .toList();
@@ -170,7 +170,7 @@ class _JerseyState extends State<Jersey> {
                                   final updatedProduct = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => EditProdukPage(product: products[index]),
+                                      builder: (context) => EditProdukPage(product: products[index], category: 'Jersey',),
                                     ),
                                   );
 
@@ -301,7 +301,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Ukuran: ${product['size'] ?? 'M, L, XL'}',
+                  'Ukuran: ${product['sizes'] ?? 'M, L, XL'}',
                   style: TextStyle(fontSize: 12, color: Colors.black),
                 ),
                 SizedBox(height: 12),

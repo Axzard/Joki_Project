@@ -1,25 +1,85 @@
+import 'dart:convert';
+import 'dart:io'; // Untuk Image.file
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class Statuspesanan extends StatefulWidget {
-  final Map<String, dynamic> product; // Menerima data produk sebagai parameter
+  final String userId; // ID pengguna yang pesannya ingin kita tampilkan
 
-  Statuspesanan({required this.product}); // Konstruktor menerima produk
+  Statuspesanan({required this.userId, required Map product}); // Konstruktor untuk ID pengguna
 
   @override
   _StatuspesananState createState() => _StatuspesananState();
 }
 
 class _StatuspesananState extends State<Statuspesanan> {
-  int productQuantity = 1; // Variabel untuk menyimpan jumlah produk
-  late double totalPrice; // Variabel untuk menyimpan harga total
+  List<Map<String, dynamic>> productList = []; // List untuk menyimpan data produk
+  bool isLoading = true; // Status untuk menunggu data
+  Map<String, int> productQuantity = {}; // Menyimpan jumlah produk yang dipesan
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi harga total jika produk tersedia
-    if (widget.product.isNotEmpty) {
-      totalPrice = widget.product['price'] * productQuantity.toDouble();
+    _fetchOrders(); // Ambil data pesanan ketika halaman dimuat
+  }
+
+  Future<void> _fetchOrders() async {
+    try {
+      final url = 'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json';
+
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+
+        // Mengambil produk dari response
+        List<Map<String, dynamic>> loadedProducts = [];
+        data.forEach((key, value) {
+          loadedProducts.add({
+            'id': key,
+            'name': value['name'],
+            'price': value['price'],
+            'details': value['details'],
+            'sizes': value['sizes'],
+            'image': value['image'],  // Path gambar tetap diterima
+          });
+        });
+
+        setState(() {
+          productList = loadedProducts;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        // Menangani error jika gagal mendapatkan data
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data pesanan!')),
+        );
+      }
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $error')),
+      );
     }
+  }
+
+  void _incrementQuantity(String productId) {
+    setState(() {
+      productQuantity[productId] = (productQuantity[productId] ?? 1) + 1;
+    });
+  }
+
+  void _decrementQuantity(String productId) {
+    setState(() {
+      if ((productQuantity[productId] ?? 1) > 1) {
+        productQuantity[productId] = (productQuantity[productId] ?? 1) - 1;
+      }
+    });
   }
 
   @override
@@ -43,88 +103,83 @@ class _StatuspesananState extends State<Statuspesanan> {
           },
         ),
       ),
-      body: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // Sejajarkan ke atas
+      body: isLoading
+          ? Center(child: CircularProgressIndicator()) // Menampilkan loading spinner
+          : Column(
               children: [
-                // Logo dengan ukuran responsif
-                Image.asset(
-                  'assets/logomalut.jpg',
-                  height: screenHeight * 0.3, // Ukuran logo disesuaikan
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start, // Sejajarkan ke atas
+                    children: [
+                      // Logo dengan ukuran responsif
+                      Image.asset(
+                        'assets/logomalut.jpg',
+                        height: screenHeight * 0.3, // Ukuran logo disesuaikan
+                      ),
+                      SizedBox(width: 15),
+                      // Teks Header
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Merchandise',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.06, // Ukuran font responsif
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red[800],
+                            ),
+                          ),
+                          Text(
+                            'Malut',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.09, // Ukuran font responsif
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red[800],
+                            ),
+                          ),
+                          Text(
+                            'United',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.09, // Ukuran font responsif
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(width: 15),
-                // Teks Header
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Merchandise',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.06, // Ukuran font responsif
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[800],
+                SizedBox(height: 10),
+                // Daftar Produk atau Pesanan
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red[800],
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(30),
                       ),
                     ),
-                    Text(
-                      'Malut',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.09, // Ukuran font responsif
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[800],
-                      ),
+                    child: ListView.builder(
+                      padding: EdgeInsets.all(20),
+                      itemCount: productList.length,
+                      itemBuilder: (ctx, index) {
+                        return _buildProdukItem(productList[index]);
+                      },
                     ),
-                    Text(
-                      'United',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.09, // Ukuran font responsif
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[800],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 10),
-          // Daftar Produk atau Pesanan
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.red[800],
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(30),
-                ),
-              ),
-              child: ListView(
-                padding: EdgeInsets.all(20),
-                children: [
-                  // Periksa apakah ada produk, jika tidak tampilkan pesan "Belum ada pesanan"
-                  widget.product.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Belum ada pesanan.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                            ),
-                          ),
-                        )
-                      : _buildProdukItem(), // Jika ada produk, tampilkan item
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildProdukItem() {
+  Widget _buildProdukItem(Map<String, dynamic> product) {
+    String productId = product['id'];
+    int quantity = productQuantity[productId] ?? 1;
+
     return Container(
       margin: EdgeInsets.only(bottom: 20),
       padding: EdgeInsets.all(15),
@@ -149,13 +204,13 @@ class _StatuspesananState extends State<Statuspesanan> {
                       borderRadius: BorderRadius.circular(10), // Optional, gives rounded corners
                     ),
                     child: Image.file(
-                      widget.product['image'], 
+                      File(product['image']), // Ganti Image.network dengan Image.file
                       fit: BoxFit.cover,
                     ),
                   ),
                   SizedBox(height: 5),
                   Text(
-                    widget.product['name'] ?? 'Nama Produk',
+                    product['name'] ?? 'Nama Produk',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -163,7 +218,7 @@ class _StatuspesananState extends State<Statuspesanan> {
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    'Rp. ${widget.product['price']}',
+                    'Rp. ${product['price']}',
                     style: TextStyle(
                       color: Colors.red[800],
                       fontWeight: FontWeight.bold,
@@ -172,7 +227,10 @@ class _StatuspesananState extends State<Statuspesanan> {
                   ),
                   SizedBox(height: 5),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () async {
+                      // Ketika tombol "Kirim" ditekan, kirim data ke Firebase dengan status "dikirim"
+                      await _updateStatusToSent(productId);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red[800],
                       shape: RoundedRectangleBorder(
@@ -193,7 +251,7 @@ class _StatuspesananState extends State<Statuspesanan> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Detail: ${widget.product['details'] ?? 'Detail produk tidak tersedia'}',
+                      'Detail: ${product['details'] ?? 'Detail produk tidak tersedia'}',
                       style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 10),
@@ -201,45 +259,21 @@ class _StatuspesananState extends State<Statuspesanan> {
                     TextField(
                       decoration: InputDecoration(
                         border: OutlineInputBorder(),
-                        labelText: 'Ukuran ${widget.product['size'] ?? 'L'}',
+                        labelText: 'Ukuran ${product['sizes']?.first ?? 'L'}',
                         labelStyle: TextStyle(color: Colors.red[800]),
                         isDense: true,
                       ),
                     ),
                     SizedBox(height: 10),
-                    // Jumlah produk dan tombol tambah
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.remove, size: 18, color: Colors.black),
-                          onPressed: () {
-                            setState(() {
-                              if (productQuantity > 1) {
-                                productQuantity--;
-                                totalPrice = widget.product['price'] * productQuantity.toDouble();
-                              }
-                            });
-                          },
-                        ),
-                        Text(
-                          'Jumlah $productQuantity',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.add, size: 18, color: Colors.black),
-                          onPressed: () {
-                            setState(() {
-                              productQuantity++;
-                              totalPrice = widget.product['price'] * productQuantity.toDouble();
-                            });
-                          },
-                        ),
-                      ],
+                    // Menampilkan jumlah produk dalam format tetap
+                    Text(
+                      'Jumlah: 1', // Mengganti dengan jumlah statis "1"
+                      style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 10),
                     // Harga total
                     Text(
-                      'Total: Rp. ${totalPrice.toStringAsFixed(2)}', // Menampilkan harga total
+                      'Total: Rp. ${product['price']}', // Menghitung total harga
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -254,5 +288,36 @@ class _StatuspesananState extends State<Statuspesanan> {
         ],
       ),
     );
+  }
+
+  // Fungsi untuk memperbarui status produk menjadi "dikirim" di Firebase
+  Future<void> _updateStatusToSent(String productId) async {
+    final url = 'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan/$productId.json';
+
+    try {
+      final response = await http.patch(
+        Uri.parse(url),
+        body: json.encode({
+          'status': 'dikirim', // Menambahkan status "dikirim"
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Jika berhasil, tampilkan snackbar atau beri feedback pada user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pesanan berhasil dikirim!')),
+        );
+      } else {
+        // Jika gagal
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memperbarui status pesanan!')),
+        );
+      }
+    } catch (error) {
+      // Menangani kesalahan saat koneksi atau permintaan
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $error')),
+      );
+    }
   }
 }

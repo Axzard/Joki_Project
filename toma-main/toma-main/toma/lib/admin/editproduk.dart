@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http; // Tambahkan http untuk komunikasi dengan Firebase
-import 'dart:convert'; // Untuk encoding data JSON
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 enum ProductSize { S, M, L, XL, XXL }
 
@@ -25,8 +25,9 @@ extension ProductSizeExtension on ProductSize {
 
 class EditProdukPage extends StatefulWidget {
   final Map<String, dynamic> product;
+  final String category;
 
-  EditProdukPage({required this.product});
+  EditProdukPage({required this.product, required this.category});
 
   @override
   _EditProdukPageState createState() => _EditProdukPageState();
@@ -35,24 +36,36 @@ class EditProdukPage extends StatefulWidget {
 class _EditProdukPageState extends State<EditProdukPage> {
   final String firebaseUrl =
       'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk';
-  
+
   late TextEditingController nameController;
   late TextEditingController priceController;
   late TextEditingController detailsController;
-  late ProductSize selectedSize;
+  late List<ProductSize> selectedSizes;
   File? _image;
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with existing product data
-    nameController = TextEditingController(text: widget.product['name']);
-    priceController = TextEditingController(text: widget.product['price'].toString());
-    detailsController = TextEditingController(text: widget.product['details']);
-    selectedSize = ProductSize.values.firstWhere(
-      (e) => e.name == widget.product['size'],
-      orElse: () => ProductSize.M,
-    );
+
+    // Inisialisasi controller dan memastikan data tidak null
+    nameController = TextEditingController(text: widget.product['name'] ?? '');
+    priceController = TextEditingController(text: (widget.product['price'] ?? 0).toString());
+    detailsController = TextEditingController(text: widget.product['details'] ?? '');
+
+    // Mengambil data ukuran dari 'sizes' dan mengubahnya menjadi List<ProductSize>
+    List<String> productSizes = widget.product['sizes'] != null
+        ? List<String>.from(widget.product['sizes'])
+        : [];
+
+    // Konversi ukuran menjadi ProductSize
+    selectedSizes = productSizes.isNotEmpty
+        ? productSizes.map((sizeName) {
+            return ProductSize.values.firstWhere(
+              (e) => e.name == sizeName,
+              orElse: () => ProductSize.M,
+            );
+          }).toList()
+        : [ProductSize.M];  
   }
 
   @override
@@ -76,8 +89,10 @@ class _EditProdukPageState extends State<EditProdukPage> {
 
   Future<void> updateProductInFirebase(Map<String, dynamic> updatedProduct) async {
     try {
-      final String productId = widget.product['id']; // Gunakan ID produk
-      final Uri url = Uri.parse('$firebaseUrl/$productId.json'); // Targetkan produk berdasarkan ID
+      final String productId = widget.product['id'];
+      final String category = widget.category;
+
+      final Uri url = Uri.parse('$firebaseUrl/$category/$productId.json');
 
       final response = await http.patch(
         url,
@@ -104,14 +119,14 @@ class _EditProdukPageState extends State<EditProdukPage> {
 
   void saveProduct() {
     final updatedProduct = {
-      'name': nameController.text,
-      'price': double.parse(priceController.text),
-      'details': detailsController.text,
-      'size': selectedSize.name,
-      'image': _image?.path ?? widget.product['image'], // Simpan gambar baru atau gunakan yang lama
+      'name': nameController.text.isNotEmpty ? nameController.text : 'Produk Tanpa Nama',
+      'price': double.tryParse(priceController.text) ?? 0,
+      'details': detailsController.text.isNotEmpty ? detailsController.text : 'No details',
+      'sizes': selectedSizes.map((size) => size.name).toList(),
+      'image': _image?.path ?? widget.product['image'] ?? '',
     };
 
-    updateProductInFirebase(updatedProduct); // Simpan ke Firebase
+    updateProductInFirebase(updatedProduct);
   }
 
   @override
@@ -120,10 +135,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
       appBar: AppBar(
         backgroundColor: Colors.red,
         automaticallyImplyLeading: false,
-        title: Text(
-          'Edit Produk',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25),
-        ),
+        title: Text('Edit Produk', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 25)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white, size: 30),
           onPressed: () {
@@ -152,29 +164,24 @@ class _EditProdukPageState extends State<EditProdukPage> {
               decoration: InputDecoration(labelText: 'Detail Produk'),
             ),
             SizedBox(height: 16),
-            Row(
-              children: [
-                Text('Ukuran: ', style: TextStyle(fontSize: 16)),
-                Expanded(
-                  child: DropdownButton<ProductSize>(
-                    isExpanded: true,
-                    value: selectedSize,
-                    onChanged: (ProductSize? newSize) {
-                      if (newSize != null) {
-                        setState(() {
-                          selectedSize = newSize;
-                        });
+            Text('Ukuran: ', style: TextStyle(fontSize: 16)),
+            Wrap(
+              children: ProductSize.values.map((size) {
+                bool isSelected = selectedSizes.contains(size);
+                return ChoiceChip(
+                  label: Text(size.name),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    setState(() {
+                      if (selected) {
+                        selectedSizes.add(size);
+                      } else {
+                        selectedSizes.remove(size);
                       }
-                    },
-                    items: ProductSize.values.map((ProductSize size) {
-                      return DropdownMenuItem<ProductSize>(
-                        value: size,
-                        child: Text(size.name),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
+                    });
+                  },
+                );
+              }).toList(),
             ),
             SizedBox(height: 16),
             GestureDetector(
