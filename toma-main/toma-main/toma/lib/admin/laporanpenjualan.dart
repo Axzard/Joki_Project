@@ -22,30 +22,54 @@ class _GrafikPenjualanState extends State<GrafikPenjualan> {
   }
 
   // Mengambil data dari Firebase Realtime Database
-  Future<void> _fetchData() async {
-    final url = 'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk.json';
+ Future<void> _fetchData() async {
+  final url = 'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json';
 
-    try {
-      // Meminta data dari Firebase
-      final response = await http.get(Uri.parse(url));
+  try {
+    // Meminta data dari Firebase
+    final response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        // Mengubah data JSON menjadi Map
-        final data = json.decode(response.body);
+    if (response.statusCode == 200) {
+      // Mengubah data JSON menjadi Map
+      final data = json.decode(response.body);
 
-        // Memproses data untuk menghitung jumlah pesanan
+      print('Data yang diterima: $data');  // Menambahkan log untuk melihat data yang diterima
+
+      // Pastikan data tidak null atau kosong
+      if (data != null && data is Map) {
+        // Hitung jumlah pesanan berdasarkan kategori
+        final Map<String, int> pesananBaru = {
+          'Jersey': 0,
+          'Syal': 0,
+          'Aksesoris': 0,
+        };
+
+        // Menyaring dan menghitung jumlah pesanan berdasarkan kategori
+        data.forEach((key, value) {
+          final nama = value['category'];  // Mengambil kategori dari data pesanan
+          final jumlah = value['quantity'];  // Mengambil jumlah pesanan produk
+
+          if (nama != null && jumlah != null && pesananBaru.containsKey(nama)) {
+            pesananBaru[nama] = pesananBaru[nama]! + (jumlah as int);  // Menambahkan jumlah pesanan sesuai kategori
+          }
+        });
+
+        // Perbarui data pesanan di UI
         setState(() {
-          produkPesanan['Jersey'] = data['Jersey'] ?? 0;
-          produkPesanan['Syal'] = data['Syal'] ?? 0;
-          produkPesanan['Aksesoris'] = data['Aksesoris'] ?? 0;
+          produkPesanan = pesananBaru;
         });
       } else {
-        throw Exception('Gagal memuat data');
+        print('Data tidak dalam format yang diharapkan: $data');
+        throw Exception('Data tidak valid');
       }
-    } catch (error) {
-      print('Error: $error');
+    } else {
+      print('Gagal memuat data: ${response.statusCode}');
+      throw Exception('Gagal memuat data');
     }
+  } catch (error) {
+    print('Error: $error');
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +230,7 @@ class _GrafikPenjualanState extends State<GrafikPenjualan> {
                   ),
                   Container(
                     height: 50,
-                    width: percentage.toDouble() * 2,
+                    width: percentage.toDouble() * 2, // Mengubah ukuran berdasarkan persentase
                     decoration: BoxDecoration(
                       color: Colors.red[600],
                       borderRadius: BorderRadius.circular(25),
@@ -218,7 +242,7 @@ class _GrafikPenjualanState extends State<GrafikPenjualan> {
                     bottom: 0,
                     child: Center(
                       child: Text(
-                        '$percentage',
+                        '$percentage', // Menampilkan jumlah pesanan
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,

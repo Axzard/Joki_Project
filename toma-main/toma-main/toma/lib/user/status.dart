@@ -71,15 +71,13 @@ class _StatusPageState extends State<StatusPage> {
       final response = await http.get(Uri.parse(firebaseUrl));
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        if (data != null) {
-          setState(() {
-            orders = [];
-            data.forEach((key, orderData) {
-              orders.add(Order.fromJson(orderData, key));
-            });
+        setState(() {
+          orders = [];
+          data.forEach((key, orderData) {
+            orders.add(Order.fromJson(orderData, key));
           });
-        }
-      } else {
+        });
+            } else {
         throw Exception('Gagal memuat pesanan');
       }
     } catch (e) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app_merchandise/model/model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';  // Import untuk FileImage
+import 'dart:io'; // Import untuk FileImage
 
 class SyalPage extends StatelessWidget {
   final String firebaseUrl =
@@ -56,6 +56,7 @@ class SyalPage extends StatelessWidget {
         'quantity': 1, // Anda bisa menambah jumlah produk jika perlu
         'image': product.image,
         'description': product.description,
+        'category': 'Syal', // Menambahkan kategori 'Syal' pada pesanan
       };
 
       // Mengirim data pesanan ke server menggunakan HTTP POST

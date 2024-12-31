@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app_merchandise/model/model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';  // Import untuk FileImage
+import 'dart:io'; // Import untuk FileImage
 
 class JerseyPage extends StatelessWidget {
   final String firebaseUrl =
@@ -17,7 +17,8 @@ class JerseyPage extends StatelessWidget {
         final List<Product> products = [];
 
         data.forEach((key, productData) {
-          if (key == 'Jersey') { // Menyaring data untuk kategori 'Jersey'
+          if (key == 'Jersey') {
+            // Menyaring data untuk kategori 'Jersey'
             productData.forEach((id, productDetail) {
               products.add(Product(
                 id: id,
@@ -52,17 +53,18 @@ class JerseyPage extends StatelessWidget {
         'quantity': 1, // Anda bisa menambah jumlah produk jika perlu
         'image': product.image,
         'description': product.description,
+        'category': 'Jersey', // Tambahkan kategori
       };
 
       // URL Firebase untuk menyimpan pesanan
       final String orderUrl =
-          'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json';  // Pesanan disimpan di bawah kunci 'pesanan'
+          'https://merchendaise-84b8d-default-rtdb.firebaseio.com/admin/pengguna/produk/pesanan.json'; // Pesanan disimpan di bawah kunci 'pesanan'
 
       // Mengirim data pesanan ke server menggunakan HTTP POST
       final response = await http.post(
         Uri.parse(orderUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(orderData),  // Kirim data pesanan tanpa pembungkus 'order'
+        body: jsonEncode(orderData), // Kirim data pesanan tanpa pembungkus 'order'
       );
 
       // Cek status response
