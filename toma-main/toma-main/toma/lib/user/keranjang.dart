@@ -27,12 +27,12 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json, String id) {
     return Order(
       id: id,
-      name: json['name'] ?? '',
-      image: json['image'] ?? '',
-      price: json['price'] is double ? json['price'].toString() : json['price'] ?? '0',
-      size: json['size'] ?? '',
-      quantity: json['quantity'] is double ? json['quantity'].toInt() : json['quantity'] ?? 0,
-      description: json['description'] ?? '',
+      name: json['name']?.toString() ?? '',
+      image: json['image']?.toString() ?? '',
+      price: json['price'] != null ? json['price'].toString() : '0',
+      size: json['size']?.toString() ?? '',
+      quantity: json['quantity'] is int ? json['quantity'] : (json['quantity'] is double ? json['quantity'].toInt() : 0),
+      description: json['description']?.toString() ?? '',
     );
   }
 }
@@ -97,7 +97,6 @@ class KeranjangPage extends StatelessWidget {
       );
 
       if (response.statusCode == 200) {
-        // Jika berhasil, beri feedback ke pengguna
         return;
       } else {
         throw Exception('Gagal memperbarui status pembayaran');
@@ -231,7 +230,7 @@ class KeranjangPage extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text('Pesanan berhasil dihapus')),
                                     );
-                                    // Refresh data setelah penghapusan
+                                    // ignore: invalid_use_of_protected_member
                                     (context as Element).reassemble();
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +248,6 @@ class KeranjangPage extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red[800], minimumSize: Size(50, 50)),
                           onPressed: () async {
-                            // Update status pembayaran ketika tombol "Bayar" ditekan
                             try {
                               await updatePaymentStatus(order.id);
                               ScaffoldMessenger.of(context).showSnackBar(
